@@ -1,0 +1,259 @@
+body {
+  font-family: 'Arial', sans-serif;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  margin: 0;
+  background-color: #121212;
+  color: #e0e0e0;
+}
+
+.container {
+  text-align: center;
+  background-color: #1e1e1e;
+  padding: 30px;
+  border-radius: 15px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  max-width: 600px;
+  width: 100%;
+  margin-top: -19px;
+  position: relative;
+}
+
+h1 {
+  font-size: 28px;
+  margin-bottom: 20px;
+  margin-top: -19px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #f0f0f0;
+}
+
+.sensor-data {
+  margin-bottom: 20px;
+}
+
+.sensor-data .row {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 10px;
+}
+
+.sensor-data p {
+  margin: 5px 0;
+  font-size: 18px;
+  color: #c0c0c0;
+}
+
+#temperature-text, #humidity-text {
+  font-size: 18px;
+}
+
+.sensor-data .datetime {
+  display: flex;
+  justify-content: center;
+  gap: 19px;
+  font-size: 16px;
+  color: #a0a0a0;
+}
+
+.led-container {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+.led-column {
+  display: flex;
+  flex-direction: column;
+  width: 45%;
+}
+
+.led-column.left {
+  align-items: flex-start;
+}
+
+.led-column.right {
+  align-items: flex-end;
+}
+
+.led-box {
+  width: calc(100% - 19px);
+  height: calc(80px - 19px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 10px;
+  background-color: #2e2e2e;
+  border-radius: 15px;
+  transition: background-color 0.3s;
+  position: relative;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+.led {
+  width: calc(40px - 19px);
+  height: calc(40px - 19px);
+  border-radius: 50%;
+  background-color: #444;
+  cursor: default;
+  transition: background-color 0.3s;
+  border: 4px solid #555;
+}
+
+.led.on-green {
+  background-color: #00FF00;
+}
+
+.led.on-red {
+  background-color: #FF0000;
+}
+
+.led.offline {
+  background-color: #808080;
+}
+
+.led-label {
+  position: absolute;
+  top: calc(50% - 11.4px);
+  transform: translateY(-50%);
+  color: #c0c0c0;
+  font-size: 16px;
+  user-select: none;
+}
+
+.led-column.left .led-label {
+  right: 10px;
+}
+
+.led-column.right .led-label {
+  left: 10px;
+}
+
+.led-datetime {
+  position: absolute;
+  bottom: 5px;
+  font-size: 12px;
+  color: #a0a0a0;
+  user-select: none;
+}
+
+.led-column.left .led-datetime {
+  right: 10px;
+}
+
+.led-column.right .led-datetime {
+  left: 10px;
+}
+
+button {
+  margin-top: 20px;
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  background-color: #6200ea;
+  border: none;
+  border-radius: 5px;
+  color: #fff;
+  transition: background-color 0.3s;
+}
+
+button:hover {
+  background-color: #3700b3;
+}
+
+.small-button {
+  padding: 6px 12px;
+  font-size: 12px;
+  background-color: #6200ea;
+  color: #fff;
+}
+
+.small-button:hover {
+  background-color: #3700b3;
+}
+
+.led-column.left .led-box {
+  justify-content: flex-start;
+  padding-left: 19px;
+}
+
+.led-column.right .led-box {
+  justify-content: flex-end;
+  padding-right: 19px;
+}
+
+.event-list {
+  margin-top: 20px;
+  text-align: left;
+  position: absolute;
+  top: 100%;
+  left: 0px;
+  width: calc(100% - 40px);
+  background-color: #1e1e1e;
+  border-radius: 15px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  padding: 20px;
+  display: none;
+}
+
+.event-list h2 {
+  font-size: 22px;
+  margin-bottom: 10px;
+  color: #f0f0f0;
+  padding-left: 18.9px;
+}
+
+.event-list ul {
+  list-style-type: none;
+  padding: 0;
+  padding-left: 18.9px;
+}
+
+.event-list li {
+  margin-bottom: 5px;
+  font-size: 16px;
+  color: #c0c0c0;
+}
+
+@media (max-width: 768px) {
+  * {
+    user-select: none;
+  }
+}
+
+button#toggle-led-2 {
+  background-color: #00FF00; /* Verde vivace per lo stato attivo */
+  width: 250px; /* Imposta una larghezza fissa */
+  padding: 10px; /* Modifica solo il padding verticale */
+}
+
+button#toggle-led-2.red {
+  background-color: red; /* Rosso per lo stato di allarme */
+  width: 250px; /* Imposta una larghezza fissa */
+  padding: 10px; /* Modifica solo il padding verticale */
+}
+
+button#toggle-led-2.yellow {
+  background-color: yellow; /* Giallo per lo stato disattivato */
+  width: 250px; /* Imposta una larghezza fissa */
+  padding: 10px; /* Modifica solo il padding verticale */
+}
+
+button#toggle-led-2.offline {
+  background-color: #6200ea; /* Colore del pulsante "Canc. Data e Ora" */
+  width: 250px; /* Imposta una larghezza fissa */
+  padding: 10px; /* Modifica solo il padding verticale */
+}
+
+.button-row {
+  display: flex;
+  justify-content: center; /* Centra orizzontalmente */
+  gap: 10px; /* Spazio tra i pulsanti */
+  width: 100%;
+  margin-bottom: 20px;
+}

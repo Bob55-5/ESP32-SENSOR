@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, user-scalable=no, maximum-scale=1">
+  <title>ESP32 Web App</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <h1>ESP32 Sensori</h1>
+    <div class="button-row">
+      <button id="toggle-led" class="small-button">
+        <i class="fas fa-sync-alt"></i> Canc. Data-Ora
+      </button>
+      <button id="show-events-button" class="small-button">
+        <i class="fas fa-list"></i> Mostra Eventi
+      </button>
+    </div>
+    <div class="sensor-data">
+      <div class="row">
+        <p id="temperature-text"><i class="fas fa-thermometer-half"></i> Temperatura: <span id="temperature">N/A</span> °C</p>
+        <p id="humidity-text"><i class="fas fa-tint"></i> Umidità: <span id="humidity">N/A</span> %</p>
+      </div>
+      <p class="datetime">
+        <span id="date">Loading...</span>
+        <span id="time">Loading...</span>
+      </p>
+    </div>
+    <div class="led-container">
+      <div class="led-column left">
+        <div class="led-box"><div class="led" id="led-0"></div><div class="led-label">Zona 1</div><span class="led-datetime" id="led-datetime-0"></span></div>
+        <div class="led-box"><div class="led" id="led-1"></div><div class="led-label">Zona 2</div><span class="led-datetime" id="led-datetime-1"></span></div>
+        <div class="led-box"><div class="led" id="led-2"></div><div class="led-label">Zona 3</div><span class="led-datetime" id="led-datetime-2"></span></div>
+        <div class="led-box"><div class="led" id="led-3"></div><div class="led-label">Zona 4</div><span class="led-datetime" id="led-datetime-3"></span></div>
+        <div class="led-box"><div class="led" id="led-4"></div><div class="led-label">Zona 5</div><span class="led-datetime" id="led-datetime-4"></span></div>
+      </div>
+      <div class="led-column right">
+        <div class="led-box"><div class="led" id="led-5"></div><div class="led-label">Zona 6</div><span class="led-datetime" id="led-datetime-5"></span></div>
+        <div class="led-box"><div class="led" id="led-6"></div><div class="led-label">Zona 7</div><span class="led-datetime" id="led-datetime-6"></span></div>
+        <div class="led-box"><div class="led" id="led-7"></div><div class="led-label">Zona 8</div><span class="led-datetime" id="led-datetime-7"></span></div>
+        <div class="led-box"><div class="led" id="led-8"></div><div class="led-label">Zona 9</div><span class="led-datetime" id="led-datetime-8"></span></div>
+        <div class="led-box"><div class="led" id="led-9"></div><div class="led-label">Zona 10</div><span class="led-datetime" id="led-datetime-9"></span></div>
+      </div>
+    </div>
+    <button id="toggle-led-2"><i class="fas fa-power-off"></i> ATTIVO </button>
+    <div class="event-list" id="event-list">
+      <h2>Ultimi 10 Eventi</h2>
+      <ul id="event-list-items"></ul>
+    </div>
+  </div>
+
+  <audio id="alert-sound" src="https://www.example.com/path/to/your/soundfile.mp3" preload="auto"></audio>
+
+  <script>
+    let socket;
+    let previousLedStates = Array(10).fill(false);
+    let eventLog = [];
+    let isEventListVisible = false;
+    let lastUpdateTime = Date.now();
+    const pingTimeout = 6000;
+    let reconnectDelay = 200;
+    const maxReconnectDelay = 2000;
+    let allLedsOfflineTimer;
+    const allLedsOfflineTimeout = 30000;
+    let isToggleLed2Disconnected = false;
+
+    function connectWebSocket() {
+      socket = new WebSocket('wss://192.168.1.125/ws');
+
+      socket.onopen = function(event) {
+        console.log("WebSocket connected");
+        reconnectDelay = 200;
+        checkPing();
+        startCheckTimer();
+      };
+
+      socket.onmessage = (event) => {
+        const message = event.data;
+        console.log("Received message: ", message);
+        if (message === "ping") {
+          lastUpdateTime = Date.now();
+          ledElements.forEach(led => {
+            led.classList.remove('offline');
+          });
+          toggleLed2Button.classList.remove('offline');
+          return;
+        }
+        try {
+          const data = JSON.parse(message);
+          if (data.ledStates) {
+            lastUpdateTime = Date.now();
+            data.ledStates.forEach((state, index) => {
+              const ledElement = ledElements[index];
+              const datetimeElement = ledDatetimeElements[index];
+              if (state !== previousLedStates[index]) {
+                if (state) {
+                  ledElement.classList.add('on-red');
+                  ledElement.classList.remove('offline');
+                  const eventTime = getCurrentDateTime();
+                  datetimeElement.textContent = eventTime;
+                  eventLog.push({ sensor: index + 1, time: eventTime });
+                  if (eventLog.length > 10) {
+                    eventLog.shift();
+                  }
+                } else {
+                  ledElement.classList.remove('on-red');
+                  ledElement.classList.add('on-green');
+                  ledElement.classList.remove('offline');
+                }
+                previousLedStates[index] = state;
+              } else if (!state) {
+                ledElement.classList.remove('on-red');
+                ledElement.classList.add('on-green');
+                ledElement.classList.remove('offline');
+              }
+            });
+            checkAllLedsOffline();
+
+            if (data.ledPin2State !== undefined) {
+              if (data.ledPin2State) {
+                toggleLed2Button.classList.add('red');
+                toggleLed2Button.classList.remove('yellow');
+                toggleLed2Button.classList.remove('offline');
+              } else {
+                toggleLed2Button.classList.remove('red');
+                toggleLed2Button.classList.remove('offline');
+              }
+              updateToggleLed2ButtonText();
+            } else {
+              toggleLed2Button.classList.remove('red');
+              toggleLed2Button.classList.remove('offline');
+              updateToggleLed2ButtonText();
+            }
+
+            if (data.ledPin2Disabled !== undefined) {
+              if (data.ledPin2Disabled) {
+                toggleLed2Button.classList.add('yellow');
+                toggleLed2Button.classList.remove('red');
+                toggleLed2Button.classList.remove('offline');
+              } else {
+                toggleLed2Button.classList.remove('yellow');
+              }
+              updateToggleLed2ButtonText();
+            }
+          }
+        } catch (error) {
+          console.error("Error parsing JSON:", error);
+        }
+      };
+
+      socket.onclose = function(event) {
+        console.log("WebSocket disconnected");
+        clearTimeout(allLedsOfflineTimer);
+        allLedsOfflineTimer = null;
+        setTimeout(connectWebSocket, reconnectDelay);
+        reconnectDelay = Math.min(reconnectDelay * 2, maxReconnectDelay);
+      };
+
+      socket.onerror = function(error) {
+        console.log("WebSocket error: ", error);
+      };
+    }
+
+    function checkPing() {
+      if (Date.now() - lastUpdateTime > pingTimeout) {
+        ledElements.forEach(led => {
+          led.classList.add('offline');
+        });
+        toggleLed2Button.classList.add('offline');
+      }
+      setTimeout(checkPing, 2000);
+    }
+
+    function checkAllLedsOffline() {
+      const allLedsOffline = previousLedStates.every(state => !state);
+      console.log("Checking LED states:", previousLedStates);
+      if (allLedsOffline) {
+        console.log("All LEDs are offline. Starting timer...");
+        if (!allLedsOfflineTimer) {
+          console.log("Setting timer for 15 seconds.");
+          allLedsOfflineTimer = setTimeout(() => {
+            console.log("All LEDs are offline for 15 seconds. Checking device status...");
+            checkDeviceStatus();
+          }, allLedsOfflineTimeout);
+        }
+      } else {
+        console.log("At least one LED is online. Resetting timer...");
+        clearTimeout(allLedsOfflineTimer);
+        allLedsOfflineTimer = null;
+        startCheckTimer();
+      }
+    }
+
+    function startCheckTimer() {
+      if (allLedsOfflineTimer) {
+        clearTimeout(allLedsOfflineTimer);
+      }
+      allLedsOfflineTimer = setTimeout(() => {
+        checkDeviceStatus();
+      }, allLedsOfflineTimeout);
+    }
+
+    function checkDeviceStatus() {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ action: 'checkStatus' }));
+      }
+    }
+
+    function updateToggleLed2ButtonText() {
+      if (toggleLed2Button.classList.contains('red')) {
+        toggleLed2Button.innerHTML = '<i class="fas fa-power-off"></i> ALLARME ';
+      } else if (toggleLed2Button.classList.contains('yellow')) {
+        toggleLed2Button.innerHTML = '<i class="fas fa-power-off"></i> DISATTIVATO ';
+      } else {
+        toggleLed2Button.innerHTML = '<i class="fas fa-power-off"></i> ATTIVO ';
+      }
+    }
+
+    connectWebSocket();
+
+    const temperatureElement = document.getElementById('temperature');
+    const humidityElement = document.getElementById('humidity');
+    const dateElement = document.getElementById('date');
+    const timeElement = document.getElementById('time');
+    const toggleLedButton = document.getElementById('toggle-led');
+    const toggleLed2Button = document.getElementById('toggle-led-2');
+    const ledElements = Array.from(document.querySelectorAll('.led'));
+    const ledDatetimeElements = Array.from(document.querySelectorAll('.led-datetime'));
+    const alertSound = document.getElementById('alert-sound');
+    const showEventsButton = document.getElementById('show-events-button');
+    const eventList = document.getElementById('event-list');
+    const eventListItems = document.getElementById('event-list-items');
+
+    toggleLedButton.addEventListener('click', () => {
+      ledDatetimeElements.forEach(element => {
+        if (!ledElements[ledDatetimeElements.indexOf(element)].classList.contains('on-red')) {
+          element.textContent = '';
+        }
+      });
+    });
+
+    toggleLed2Button.addEventListener('click', () => {
+      if (isToggleLed2Disconnected) {
+        toggleLed2Button.style.backgroundColor = '';
+        toggleLed2Button.classList.remove('yellow');
+      } else {
+        toggleLed2Button.style.backgroundColor = 'yellow';
+        toggleLed2Button.classList.add('yellow');
+      }
+      isToggleLed2Disconnected = !isToggleLed2Disconnected;
+
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: 'turnOffLed', ledIndex: 2 }));
+      }
+
+      updateToggleLed2ButtonText();
+    });
+
+    showEventsButton.addEventListener('click', () => {
+      if (isEventListVisible) {
+        eventList.style.display = 'none';
+      } else {
+        eventListItems.innerHTML = '';
+        eventLog.forEach(event => {
+          const listItem = document.createElement('li');
+          listItem.textContent = `Zona ${event.sensor}: ${event.time}`;
+          eventListItems.appendChild(listItem);
+        });
+        eventList.style.display = 'block';
+      }
+      isEventListVisible = !isEventListVisible;
+    });
+
+    function updateDateTime() {
+      const now = new Date();
+      const date = now.toLocaleDateString();
+      const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      dateElement.textContent = `${date}`;
+      timeElement.textContent = `${time}`;
+    }
+
+    function getCurrentDateTime() {
+      const now = new Date();
+      const date = now.toLocaleDateString();
+      const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      return `${date} ${time}`;
+    }
+
+    updateDateTime();
+    setInterval(updateDateTime, 1000);
+
+    document.addEventListener('touchstart', (event) => {
+      if (event.target.classList.contains('led-label')) {
+        event.preventDefault();
+      }
+    });
+  </script>
+</body>
+</html>
