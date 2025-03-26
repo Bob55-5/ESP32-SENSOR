@@ -67,7 +67,7 @@
     let isToggleLed2Disconnected = false;
 
     function connectWebSocket() {
-      socket = new WebSocket('ws://192.168.1.125/ws');
+      socket = new WebSocket('wss://192.168.1.125/ws');
 
       socket.onopen = function(event) {
         console.log("WebSocket connected");
